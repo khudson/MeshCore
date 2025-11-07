@@ -16,8 +16,30 @@
 #define SX126X_DIO2_AS_RF_SWITCH  true
 #define SX126X_DIO3_TCXO_VOLTAGE (1.8f)
 
-#define  PIN_VBAT_READ 17
-#define  ADC_MULTIPLIER   (1.815f) // dependent on voltage divider resistors. TODO: more accurate battery tracking
+#define PIN_VBAT_READ     17
+
+// set the resolution of the ADC to 12 bits
+// number of steps in a 12 bit sample is 2**12 (4096)
+// the ADC reference voltage by default is 3.6V (nRF52 0.6V gain * 6)
+// calculate millivolts per raw step:
+//    convert volts to mV (V * 1000)
+//    divide by number of steps = mV/step 
+#define ADC_RES         12
+#define ADC_STEPS       4096
+#define ADC_REF_V       (3.6f)
+#define ADC_MV_PER_STEP ((1000 * ADC_REF_V) / ADC_STEPS)
+
+// dependent on voltage divider resistors.
+// default to a 2:1 voltage divider (2.0) but allow overrides
+// in platformio.ini
+
+#ifndef ADC_MULTIPLIER
+  #define ADC_MULTIPLIER (2.0f)
+#endif
+
+// scaled mV per step
+
+#define MV_PER_STEP (ADC_MULTIPLIER * ADC_MV_PER_STEP)
 
 class PromicroBoard : public mesh::MainBoard {
 protected:
@@ -32,18 +54,31 @@ public:
   #define BATTERY_SAMPLES 8
 
   uint16_t getBattMilliVolts() override {
-    analogReadResolution(12);
+    // be sure we're using the 3.6V reference 
+    analogReference(AR_INTERNAL);
+    analogReadResolution(ADC_RES);
+
+    // yeet a sample, ADC isn't reliable right now after setting
+    // reference voltage and resolution but will be after the next
+    // sample
+
+    analogRead(PIN_VBAT_READ);
 
     uint32_t raw = 0;
     for (int i = 0; i < BATTERY_SAMPLES; i++) {
       raw += analogRead(PIN_VBAT_READ);
     }
-    raw = raw / BATTERY_SAMPLES;
-    return (ADC_MULTIPLIER * raw);
+
+    // calculate the average here to avoid integer precision error
+    return (MV_PER_STEP * raw / BATTERY_SAMPLES);
   }
 
   const char* getManufacturerName() const override {
-    return "ProMicro DIY";
+    #ifdef VARIANT_NAME
+      return VARIANT_NAME;
+    #else
+      return "ProMicro DIY";
+    #endif
   }
 
   int buttonStateChanged() {
