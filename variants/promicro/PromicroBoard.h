@@ -26,7 +26,9 @@
 //    divide by number of steps = mV/step 
 #define ADC_RES         12
 #define ADC_STEPS       4096
-#define ADC_REF_V       (3.6f)
+#ifndef ADC_REF_V
+  #define ADC_REF_V     (3.6f)
+#endif
 #define ADC_MV_PER_STEP ((1000 * ADC_REF_V) / ADC_STEPS)
 
 // dependent on voltage divider resistors.
@@ -54,23 +56,33 @@ public:
   #define BATTERY_SAMPLES 8
 
   uint16_t getBattMilliVolts() override {
-    // be sure we're using the 3.6V reference 
-    analogReference(AR_INTERNAL);
+    #ifdef ADC_REFERENCE
+      analogReference(ADC_REFERENCE);
+    #endif
+
     analogReadResolution(ADC_RES);
 
-    // yeet a sample, ADC isn't reliable right now after setting
-    // reference voltage and resolution but will be after the next
-    // sample
+    #if defined(ADC_ALTERNATE) || defined(ADC_REFERENCE)
+      // yeet a sample, ADC isn't reliable right now after setting
+      // reference voltage and resolution but will be after the next
+      // sample
 
-    analogRead(PIN_VBAT_READ);
+      delay(1);
+      analogRead(PIN_VBAT_READ);
+    #endif
 
     uint32_t raw = 0;
     for (int i = 0; i < BATTERY_SAMPLES; i++) {
       raw += analogRead(PIN_VBAT_READ);
     }
 
-    // calculate the average here to avoid integer precision error
-    return (MV_PER_STEP * raw / BATTERY_SAMPLES);
+    #ifdef ADC_ALTERNATE
+      // calculate the average here to avoid integer precision error
+      return (MV_PER_STEP * raw / BATTERY_SAMPLES);
+    #else
+      raw = raw / BATTERY_SAMPLES;
+      return (ADC_MULTIPLIER * raw);
+    #endif
   }
 
   const char* getManufacturerName() const override {
