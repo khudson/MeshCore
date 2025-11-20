@@ -81,9 +81,15 @@ static Adafruit_INA260 INA260;
 #endif
 
 #if ENV_INCLUDE_INA226
-#define TELEM_INA226_ADDRESS    0x44
-#define TELEM_INA226_SHUNT_VALUE 0.100
-#define TELEM_INA226_MAX_AMP 0.8
+#ifndef TELEM_INA226_ADDRESS
+  #define TELEM_INA226_ADDRESS    0x44
+#endif
+#ifndef TELEM_INA226_SHUNT_VALUE
+  #define TELEM_INA226_SHUNT_VALUE 0.100
+#endif
+#ifndef TELEM_INA226_MAX_AMP
+  #define TELEM_INA226_MAX_AMP 0.8
+#endif
 #include <INA226.h>
 static INA226 INA226(TELEM_INA226_ADDRESS, TELEM_WIRE);
 #endif
@@ -426,10 +432,17 @@ bool EnvironmentSensorManager::querySensors(uint8_t requester_permissions, Cayen
 
     #if ENV_INCLUDE_INA226
     if (INA226_initialized) {
-      telemetry.addVoltage(next_available_channel, INA226.getBusVoltage());
-      telemetry.addCurrent(next_available_channel, INA226.getCurrent_mA() / 1000.0);
-      telemetry.addPower(next_available_channel, INA226.getPower_mW() / 1000.0);
-      next_available_channel++;
+      MESH_DEBUG_PRINTLN("polling INA226 ...");
+      float bv = INA226.getBusVoltage();
+      float ic = INA226.getCurrent_mA() / 1000.0;
+      float pc = INA226.getPower_mW() / 1000.0;
+
+      telemetry.addVoltage(TELEM_CHANNEL_SELF, bv);
+      telemetry.addCurrent(TELEM_CHANNEL_SELF, ic);
+      telemetry.addPower(TELEM_CHANNEL_SELF, pc);
+      
+      MESH_DEBUG_PRINTLN("got: %02.2fV %02.2fmA (%02.2fW)", bv, ic, pc);
+      // next_available_channel++;
     }
     #endif
 
