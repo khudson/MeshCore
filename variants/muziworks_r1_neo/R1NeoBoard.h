@@ -8,14 +8,14 @@
 
 #define DISPLAY_CLASS NullDisplayDriver
 
-class R1NeoBoard : public NRF52BoardDCDC, public NRF52BoardOTA {
+class R1NeoBoard : public NRF52BoardDCDC {
 protected:
 #ifdef NRF52_POWER_MANAGEMENT
   void initiateShutdown(uint8_t reason) override;
 #endif
 
 public:
-  R1NeoBoard() : NRF52BoardOTA("R1NEO_OTA") {}
+  R1NeoBoard() : NRF52Board("R1NEO_OTA") {}
   void begin();
 
 #if defined(P_LORA_TX_LED)
